@@ -1,0 +1,28 @@
+node_modules/
+.next/
+out/
+.turbo/
+
+.env
+.env.local
+.env.*.local
+!.env.example
+
+.DS_Store
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+coverage/
+.vercel/
+*.tsbuildinfo
+
+# Local editor files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Generated Supabase local files
+supabase/.branches/
+supabase/.temp/

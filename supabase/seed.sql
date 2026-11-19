@@ -1,0 +1,2 @@
+-- PulseBoard seed data will be added after the database schema is introduced.
+-- Keep demo data deterministic and safe to run in a local development project.
