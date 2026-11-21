@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { RecordForm } from "@/components/record-form";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { getCurrentUserWorkspace } from "@/lib/client-workspace";
+import { formatDate } from "@/lib/format";
 
 export default function ClientsPage() {
   const [rows, setRows] = useState<any[]>([]);
   const [ctx, setCtx] = useState<any>(null);
   const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("all");
   async function load() {
     const context = await getCurrentUserWorkspace();
     setCtx(context);
@@ -24,8 +26,10 @@ export default function ClientsPage() {
   useEffect(() => {
     load();
   }, []);
-  const filtered = rows.filter((row) =>
-    `${row.name} ${row.company || ""}`.toLowerCase().includes(query.toLowerCase()),
+  const filtered = rows.filter(
+    (row) =>
+      `${row.name} ${row.company || ""}`.toLowerCase().includes(query.toLowerCase()) &&
+      (status === "all" || row.status === status),
   );
   return (
     <div className="p-6 lg:p-10">
@@ -45,12 +49,25 @@ export default function ClientsPage() {
         }
       />
       <div className="mt-8">
-        <input
-          className="mb-4 w-full max-w-md rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-500"
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search clients…"
-          value={query}
-        />
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+          <input
+            className="w-full max-w-md rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-500"
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search clients…"
+            value={query}
+          />
+          <select
+            aria-label="Filter clients by status"
+            className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-500"
+            onChange={(e) => setStatus(e.target.value)}
+            value={status}
+          >
+            <option value="all">All statuses</option>
+            <option value="lead">Lead</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
         {filtered.length ? (
           <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
             <table className="w-full text-left text-sm">
@@ -83,9 +100,7 @@ export default function ClientsPage() {
                         {row.status}
                       </StatusBadge>
                     </td>
-                    <td className="px-5 py-4 text-slate-400">
-                      {new Date(row.created_at).toLocaleDateString()}
-                    </td>
+                    <td className="px-5 py-4 text-slate-400">{formatDate(row.created_at)}</td>
                   </tr>
                 ))}
               </tbody>
