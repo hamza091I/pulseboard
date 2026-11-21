@@ -1,65 +1,318 @@
 # PulseBoard
 
-PulseBoard is a multi-tenant SaaS operations dashboard for small agencies. It gives teams one focused workspace to manage clients, projects, tasks, members, activity history, and delivery signals.
+PulseBoard is a portfolio-grade, multi-tenant SaaS operations dashboard for small agencies and delivery teams. It gives an agency one focused workspace for managing client relationships, projects, tasks, team membership, activity history, and delivery signals.
 
-> **Portfolio positioning:** A full-stack operations workspace that shows authentication, workspace isolation, role-based permissions, relational data, live metrics, and production-minded UX.
+The project is intentionally narrower than a generic project-management tool. Its purpose is to demonstrate the engineering decisions behind a real SaaS product: authentication, workspace isolation, role-aware access, relational PostgreSQL data, Row Level Security, server-side session handling, operational dashboards, safe demo data, and a grounded AI summary layer.
 
-## Current status
+## Product idea
 
-**Portfolio-ready implementation complete.** The repository includes the Next.js/TypeScript application shell, Supabase SSR authentication, protected `/app` routing, workspace onboarding, a secure SQL data model with RLS, clients/projects/tasks/team/activity modules, database-backed dashboard metrics, demo data loading, and a grounded AI Workspace Brief.
+Small agencies often manage client work across scattered spreadsheets, chat messages, task lists, and documents. This makes it difficult to answer simple operational questions:
 
-The remaining setup is external: create a Supabase project, apply both migrations, add the two public environment variables locally, and configure the email redirect URLs. The app works without an AI key by using a grounded fallback; an OpenAI-compatible key enables live AI-generated summaries.
+- Which client relationships need attention?
+- Which projects are active, blocked, or approaching a deadline?
+- Which tasks are overdue or waiting for review?
+- Who has access to the workspace?
+- What changed recently, and what should the team do next?
 
-## Stack
+PulseBoard brings those answers into one calm operating layer. Each agency has an isolated workspace. Team members can see the operational picture, create connected client/project/task records, review activity history, and use the dashboard as a daily delivery overview.
 
-- Next.js App Router
-- React + TypeScript
+## Portfolio positioning
+
+This project demonstrates a complete full-stack workflow rather than only a visual landing page:
+
+1. A public marketing surface explains the product and its value.
+2. Supabase Auth manages account creation and login.
+3. Workspace onboarding creates the tenant boundary for each agency.
+4. Every operational record carries a `workspace_id`.
+5. PostgreSQL Row Level Security protects data at the database layer.
+6. The application reads the authenticated session on the server and in the browser through Supabase SSR clients.
+7. Dashboard metrics are calculated from persisted data instead of hard-coded mock values.
+8. Important create actions write activity log entries.
+9. Demo data can be loaded into an empty workspace for portfolio presentations.
+10. The AI Workspace Brief summarizes authorized workspace metrics and falls back safely when no AI key is configured.
+
+## Current feature set
+
+### Public and authentication experience
+
+- Responsive product landing page at `/`.
+- Email/password signup at `/signup`.
+- Email/password login at `/login`.
+- Supabase auth callback at `/auth/callback`.
+- Protected application routes under `/app`.
+- Workspace onboarding at `/onboarding`.
+- Session refresh and protected-route handling through `middleware.ts`.
+
+### Workspace operations
+
+- Overview dashboard with database-backed counts for clients, active projects, open tasks, and overdue tasks.
+- Client records with name, company, email, and status.
+- Project records with description, status, priority, due date, and optional client relationship.
+- Task records with project relationship, status, priority, and due date.
+- Team page showing workspace members and their roles.
+- Activity page showing recent workspace events.
+- Settings page for the current workspace context.
+- Responsive application shell with persistent navigation and workspace identity.
+
+### Creation workflows
+
+- Create clients from the Clients page.
+- Create projects from the Projects page and optionally link them to an existing client.
+- Create tasks from the Tasks page and require a project relationship.
+- Record create actions in `activity_logs`.
+- Prevent demo data from overwriting a workspace that already contains clients.
+
+### AI Workspace Brief
+
+The dashboard can request a brief based on the current workspace metrics. The route collects already-authorized project, task, and client data, then either:
+
+- Returns a grounded local fallback when `OPENAI_API_KEY` is not configured.
+- Calls an OpenAI-compatible Chat Completions endpoint when a server-side key is available.
+- Falls back to the grounded local result if the external model request fails or returns invalid JSON.
+
+The AI layer is not an authorization layer and is not the source of truth for business data. It receives a compact summary of data the current user is already allowed to access.
+
+## Technology stack
+
+- Next.js 15 App Router
+- React 19
+- TypeScript
 - Tailwind CSS
-- Supabase Auth and PostgreSQL with Row Level Security
-- Zod server-side validation
+- Supabase Auth
+- Supabase SSR
+- Supabase PostgreSQL
+- PostgreSQL Row Level Security
+- `@supabase/ssr`
+- `@supabase/supabase-js`
 - Lucide React
-- Vercel deployment target
-- pnpm 11
+- Prettier
+- ESLint
+- pnpm 11.25.0
+- Docker-compatible Next.js standalone output
 
-## Run locally
+Zod is included as a dependency for future boundary validation work. The current create flows also rely on database constraints and server/database authorization policies.
+
+## Architecture
+
+The application is organized around a clear browser, application, and database boundary:
+
+```text
+Browser
+  |
+  v
+Next.js App Router
+  |
+  +-- Public marketing routes
+  +-- Authentication routes
+  +-- Protected workspace routes
+  |       |
+  |       +-- Server and browser Supabase clients
+  |       +-- Workspace membership lookup
+  |       +-- Dashboard and operational modules
+  |       +-- AI Workspace Brief API
+  |
+  v
+Supabase Auth and PostgreSQL
+  |
+  +-- profiles
+  +-- workspaces
+  +-- workspace_members
+  +-- clients
+  +-- projects
+  +-- tasks
+  +-- activity_logs
+  +-- Row Level Security policies
+```
+
+### Tenant boundary
+
+A workspace is the tenant boundary. Every business record is associated with a workspace through `workspace_id`. The current workspace is resolved from the authenticated user's membership, not from a client-provided workspace ID.
+
+The server helper in `lib/workspace.ts` deliberately performs two separate reads:
+
+1. It finds the authenticated user's membership in `workspace_members`.
+2. It loads the related row from `workspaces` using `membership.workspace_id`.
+
+This makes Supabase relationship and Row Level Security failures visible instead of silently treating a query error as a missing workspace. Protected application errors are rendered by `app/app/error.tsx` with the real error message.
+
+### Authorization model
+
+The database is authoritative. UI visibility is not treated as security. The SQL migrations define policies for workspace-scoped reads and writes. The role values are:
+
+- `owner`: workspace owner and highest administrative role.
+- `admin`: administrative workspace role.
+- `member`: standard workspace member.
+
+The current migration gives members access to operational reads and creation flows, while administrative updates and deletes are restricted according to the policy definitions.
+
+## Database model
+
+Migration `001_phase_1_auth_workspaces.sql` creates:
+
+- `profiles`
+- `workspaces`
+- `workspace_members`
+- The `handle_new_user` profile trigger
+- The secure `create_workspace` function
+- Membership and workspace Row Level Security policies
+
+Migration `002_phase_2_operations.sql` creates:
+
+- `clients`
+- `projects`
+- `tasks`
+- `activity_logs`
+- Timestamp update triggers
+- Workspace-scoped Row Level Security policies
+- Indexes for workspace, project, and activity lookups
+
+Projects optionally reference clients. Tasks require a project. Activity events reference the workspace and the user who performed the action.
+
+## Repository structure
+
+```text
+app/
+  (auth)/                 Login and signup routes
+  api/                    AI brief, demo seed, and health endpoints
+  app/                    Protected workspace shell and product modules
+  auth/callback/          Supabase email confirmation callback
+  onboarding/             Workspace creation flow
+  page.tsx                Public landing page
+  globals.css             Global styles and design tokens
+
+components/
+  ai-brief.tsx            AI brief interaction
+  demo-seed-button.tsx    Demo data loader
+  record-form.tsx         Client, project, and task creation form
+  ui.tsx                  Shared headers, badges, and empty states
+
+lib/
+  activity.ts             Activity log helper
+  client-workspace.ts     Browser-side workspace lookup
+  workspace.ts            Server-side session and workspace lookup
+  supabase/               Browser and server Supabase clients
+
+types/
+  domain.ts               Shared workspace, client, project, task, and role types
+
+supabase/
+  migrations/              Ordered SQL schema and RLS migrations
+  seed.sql                 Safe seed guidance
+
+docs/
+  architecture.md         System boundaries and data ownership notes
+
+public/
+  manus-routes.json       Route manifest
+
+Dockerfile                Production container contract
+app.config.ts             Project metadata and logo configuration
+next.config.ts            Next.js standalone output configuration
+plan.md                   Product, design, and implementation plan
+TODO.md                   Delivery checklist
+.env.example              Safe environment variable template
+```
+
+## Local development
 
 ### Prerequisites
 
-- Node.js 20+
-- pnpm 11+
-- A Supabase project for authentication and database features
+Install the following before starting:
 
-### Setup
+- Node.js 20 or newer.
+- pnpm 11 or newer.
+- A Supabase project.
+- Git.
+
+### Install dependencies
 
 ```bash
 pnpm install
+```
+
+### Configure environment variables
+
+Copy the safe template:
+
+```bash
 cp .env.example .env.local
+```
+
+Then set the public Supabase values in `.env.local`:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+The `.env.local` file is intentionally ignored by Git. Never commit it, a Supabase service-role key, or an AI provider key.
+
+### Apply the database migrations
+
+Open the Supabase SQL Editor and run these files in order:
+
+```text
+supabase/migrations/001_phase_1_auth_workspaces.sql
+supabase/migrations/002_phase_2_operations.sql
+```
+
+The first migration must run before the second because the operations migration depends on workspace membership helper functions and the `workspaces` table.
+
+### Configure Supabase authentication URLs
+
+In Supabase Authentication URL Configuration, use the following local values:
+
+```text
+Site URL:
+http://localhost:3000
+
+Redirect URL:
+http://localhost:3000/auth/callback
+```
+
+If the application is deployed, add the deployed domain and its callback route as additional redirect URLs.
+
+### Start the application
+
+```bash
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000) in a browser. Create an account, complete onboarding, and open the protected dashboard.
 
-## Phase 1 — Supabase setup
+### Load showcase data
 
-1. Create a project at [supabase.com](https://supabase.com) and open **Project Settings → API**.
-2. Copy the **Project URL** and the public **anon key**.
-3. Create a local environment file:
+After creating a workspace, use **Load demo data** on the Overview page. The loader creates a small connected dataset containing clients, projects, tasks, and an activity event.
 
-   ```bash
-   cp .env.example .env.local
-   ```
+The loader checks whether the workspace already contains clients. If it does, the request is rejected instead of overwriting the workspace.
 
-4. Put the two values in `.env.local` as `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-5. Open **SQL Editor** in Supabase and run `supabase/migrations/001_phase_1_auth_workspaces.sql`, then `supabase/migrations/002_phase_2_operations.sql`.
-6. In **Authentication → URL Configuration**, use `http://localhost:3000` as the local Site URL and add `http://localhost:3000/auth/callback` as a redirect URL.
-7. Start the app with `pnpm dev`, open `/signup`, create an account, confirm the email if email confirmation is enabled, then create a workspace.
-8. From Overview, use **Load demo data** to create a safe showcase dataset for the current workspace.
+## Workspace membership troubleshooting
 
-Do not commit `.env.local` or any service-role key. The migrations create profiles, workspaces, memberships, operational tables, the secure `create_workspace` function, and Row Level Security policies. Run them in order in a fresh project. The demo loader refuses to run when the workspace already has clients, so it does not overwrite existing data.
+If a user is redirected to onboarding even though a workspace membership exists, verify that the membership belongs to the same authenticated Supabase user.
 
-### Optional AI configuration
+Run the following query in Supabase SQL Editor using the user's email only for investigation:
 
-The AI Workspace Brief uses a grounded local fallback by default. To enable live AI output, add these server-only variables to `.env.local` or the deployment environment:
+```sql
+select id, email
+from auth.users
+where email = 'your-email@example.com';
+```
+
+Then compare the returned `id` with the membership row:
+
+```sql
+select id, workspace_id, user_id, role, joined_at
+from public.workspace_members
+where user_id = 'AUTH_USER_ID';
+```
+
+The `workspace_members.user_id` value must exactly equal the authenticated user's `auth.users.id`. The role should be one of `owner`, `admin`, or `member`.
+
+The application does not silently hide database lookup failures anymore. Membership query errors, workspace query errors, and missing related workspaces are rendered as visible errors in the protected app. If no membership is visible at all, the onboarding page shows a diagnostic message explaining that the user ID and RLS policy should be checked.
+
+## Optional AI configuration
+
+The grounded fallback works without an AI provider. To enable live AI-generated summaries, add the following server-only variables:
 
 ```env
 OPENAI_API_KEY=your-server-side-key
@@ -67,13 +320,11 @@ OPENAI_API_BASE=https://api.openai.com/v1
 OPENAI_MODEL=gpt-4o-mini
 ```
 
-Never expose `OPENAI_API_KEY` with a `NEXT_PUBLIC_` prefix or commit it to GitHub.
+`OPENAI_API_BASE` can point to another OpenAI-compatible provider. The key must never use a `NEXT_PUBLIC_` prefix and must never be committed to the repository.
 
-## GitHub
+## Quality checks
 
-The canonical portfolio repository is [github.com/hamza091I/pulseboard](https://github.com/hamza091I/pulseboard). Keep the repository public for portfolio visibility, but never commit secrets or `.env.local`.
-
-### Quality checks
+Run the complete local verification sequence before opening a pull request or publishing a portfolio update:
 
 ```bash
 pnpm typecheck
@@ -82,44 +333,78 @@ pnpm format:check
 pnpm build
 ```
 
-### Production container
+The production server can be tested locally after a successful build:
 
-The repository includes a production `Dockerfile` and an unauthenticated `/api/health` endpoint for container health checks. The image runs the Next.js standalone server on port `3000`; provide Supabase and optional AI variables through the deployment platform rather than baking them into the image.
-
-## Environment variables
-
-Copy `.env.example` to `.env.local` and fill in the public Supabase URL and anon key. Add optional AI variables only on the server. Never commit `.env.local`, a service-role key, an AI key, or any other secret.
-
-## Repository map
-
-```text
-app/                  Next.js routes, layout, global styles, and landing page
-components/           Reusable UI components, forms, badges, and AI/demo controls
-lib/                  Supabase clients, permissions, validation, and domain logic
-types/                Database and domain types
-supabase/migrations/  Versioned SQL migrations
-supabase/seed.sql     Safe deterministic demo data entry point
-public/               Static assets and the Webdev route manifest
-plan.md               Implementation and design decisions
-TODO.md               Outcome-based project checklist
-docs/architecture.md  System boundaries and data-flow notes
+```bash
+pnpm start
 ```
 
-## Product direction
+The unauthenticated health endpoint is:
 
-The current useful release supports:
+```text
+GET /api/health
+```
 
-- Workspace onboarding and protected routes.
-- Owner, Admin, and Member roles.
-- Clients, projects, and tasks with real relationships.
-- Database-backed KPIs and activity history.
-- Responsive B2B SaaS navigation and stateful forms.
-- An AI Workspace Brief grounded in live workspace data, with a no-key fallback.
+It returns a small JSON response such as:
 
-## Portfolio case study outline
+```json
+{
+  "status": "ok",
+  "service": "pulseboard"
+}
+```
 
-When the product is complete, describe it as:
+## Production deployment
 
-> I designed and built a multi-tenant SaaS operations dashboard for small agencies. I modeled workspace-level data isolation, implemented permission-aware CRUD workflows, and connected live operational data to a focused performance overview.
+The project is configured for Next.js standalone output and includes a root `Dockerfile`. The container runs the production server on port `3000` and expects runtime environment variables to be supplied by the deployment platform.
 
-Include the live demo, GitHub repository, a 60–90 second walkthrough, screenshots, the architecture trade-offs, and the next improvements.
+For a Vercel deployment:
+
+1. Import the GitHub repository.
+2. Select the `main` branch.
+3. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` as environment variables.
+4. Add the production site URL and `/auth/callback` to Supabase Authentication URL Configuration.
+5. Deploy and test signup, login, onboarding, dashboard loading, and the health route.
+
+For a Docker-compatible host:
+
+```bash
+docker build -t pulseboard .
+docker run --env-file .env.production -p 3000:3000 pulseboard
+```
+
+Do not bake `.env.production` into the image. Inject secrets through the host's environment or secret manager.
+
+## GitHub repository
+
+The public repository is:
+
+[github.com/hamza091I/pulseboard](https://github.com/hamza091I/pulseboard)
+
+The default branch is `main`. The repository intentionally excludes `.env.local`, `.next`, `node_modules`, TypeScript build information, and Git internals from the final portfolio ZIP.
+
+## Portfolio presentation
+
+A concise way to describe the project is:
+
+> PulseBoard is a multi-tenant SaaS operations dashboard I designed and built for small agencies. It centralizes clients, projects, tasks, team access, activity history, and delivery metrics in workspace-isolated PostgreSQL data secured with Supabase Auth and Row Level Security. I also added demo data loading, a grounded AI Workspace Brief, server-side session handling, and a production Docker contract.
+
+The strongest portfolio talking points are:
+
+- Tenant isolation through `workspace_id` and Row Level Security.
+- Separate server and browser Supabase clients for session-safe access.
+- Relational data flow from clients to projects to tasks.
+- Operational KPIs calculated from real database rows.
+- Diagnostic handling for membership and workspace lookup failures.
+- A fallback-first AI integration that remains useful without an external API key.
+- Production checks with TypeScript, ESLint, Prettier, and Next.js build output.
+
+## Scope and next extensions
+
+The current release focuses on the core portfolio story: authentication, workspace isolation, connected operational records, activity visibility, dashboard metrics, demo data, and AI summarization.
+
+Natural next extensions for a production SaaS release would include invitation emails, member management screens, full edit and delete workflows, filters and pagination for large workspaces, generated Supabase TypeScript types, automated tests, billing, notifications, and a deployed public demo environment.
+
+## License
+
+This repository is a portfolio project. Add a license file before accepting external contributions or distributing the code as an open-source package.
