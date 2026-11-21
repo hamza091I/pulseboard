@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { ArrowRight, Building2, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -8,6 +8,11 @@ export default function OnboardingPage() {
   const [workspaceName, setWorkspaceName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [noMembership, setNoMembership] = useState(false);
+
+  useEffect(() => {
+    setNoMembership(new URLSearchParams(window.location.search).get("reason") === "no-membership");
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -50,6 +55,14 @@ export default function OnboardingPage() {
           <p className="mt-3 leading-7 text-slate-500">
             This is the shared home for your clients, projects, tasks, and team.
           </p>
+          {noMembership ? (
+            <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+              PulseBoard could not find a visible workspace membership for the signed-in user. If
+              you already have a workspace, verify that <code>workspace_members.user_id</code>{" "}
+              exactly matches the current Supabase Auth user ID and that the membership RLS policy
+              is enabled.
+            </div>
+          ) : null}
           <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
             <label className="block text-sm font-medium text-ink">
               Workspace name

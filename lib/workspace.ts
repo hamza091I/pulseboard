@@ -49,7 +49,7 @@ export async function getCurrentWorkspace() {
   if (membershipError) throwQueryError("Workspace membership lookup", membershipError);
 
   const membership = memberships?.[0];
-  if (!membership) redirect("/onboarding");
+  if (!membership) redirect("/onboarding?reason=no-membership");
 
   const { data: workspace, error: workspaceError } = await supabase
     .from("workspaces")
