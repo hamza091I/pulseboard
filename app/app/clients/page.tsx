@@ -5,12 +5,14 @@ import { RecordForm } from "@/components/record-form";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { getCurrentUserWorkspace } from "@/lib/client-workspace";
 import { formatDate } from "@/lib/format";
+import { getPageCount, getPageItems } from "@/lib/pagination";
 
 export default function ClientsPage() {
   const [rows, setRows] = useState<any[]>([]);
   const [ctx, setCtx] = useState<any>(null);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
+  const [page, setPage] = useState(1);
   async function load() {
     const context = await getCurrentUserWorkspace();
     setCtx(context);
@@ -31,6 +33,9 @@ export default function ClientsPage() {
       `${row.name} ${row.company || ""}`.toLowerCase().includes(query.toLowerCase()) &&
       (status === "all" || row.status === status),
   );
+  const pageSize = 10;
+  const pageCount = getPageCount(filtered.length, pageSize);
+  const visibleRows = getPageItems(filtered, Math.min(page, pageCount), pageSize);
   return (
     <div className="p-6 lg:p-10">
       <PageHeader
@@ -52,14 +57,20 @@ export default function ClientsPage() {
         <div className="mb-4 flex flex-col gap-3 sm:flex-row">
           <input
             className="w-full max-w-md rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-500"
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPage(1);
+            }}
             placeholder="Search clients…"
             value={query}
           />
           <select
             aria-label="Filter clients by status"
             className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-500"
-            onChange={(e) => setStatus(e.target.value)}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(1);
+            }}
             value={status}
           >
             <option value="all">All statuses</option>
@@ -80,7 +91,7 @@ export default function ClientsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((row) => (
+                {visibleRows.map((row) => (
                   <tr className="border-b border-slate-100 last:border-0" key={row.id}>
                     <td className="px-5 py-4">
                       <p className="font-semibold text-ink">{row.name}</p>
@@ -105,6 +116,31 @@ export default function ClientsPage() {
                 ))}
               </tbody>
             </table>
+            {pageCount > 1 ? (
+              <div className="flex items-center justify-between border-t border-slate-100 px-5 py-4 text-sm">
+                <span className="text-slate-400">
+                  Page {Math.min(page, pageCount)} of {pageCount}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-slate-600 disabled:opacity-40"
+                    disabled={page <= 1}
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    type="button"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-slate-600 disabled:opacity-40"
+                    disabled={page >= pageCount}
+                    onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+                    type="button"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : (
           <EmptyState
