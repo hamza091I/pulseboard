@@ -5,6 +5,12 @@
     { "path": "/signup", "title": "Create account | PulseBoard" },
     { "path": "/onboarding", "title": "Create workspace | PulseBoard" },
     { "path": "/app", "title": "Overview | PulseBoard" },
+    { "path": "/app/clients", "title": "Clients | PulseBoard" },
+    { "path": "/app/projects", "title": "Projects | PulseBoard" },
+    { "path": "/app/tasks", "title": "Tasks | PulseBoard" },
+    { "path": "/app/team", "title": "Team | PulseBoard" },
+    { "path": "/app/activity", "title": "Activity | PulseBoard" },
+    { "path": "/app/settings", "title": "Settings | PulseBoard" },
     { "path": "/auth/callback", "title": "Authentication callback | PulseBoard" }
   ]
 }

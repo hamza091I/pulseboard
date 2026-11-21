@@ -6,17 +6,17 @@ PulseBoard is a multi-tenant SaaS operations dashboard for small agencies. It gi
 
 ## Current status
 
-**Phase 1 — Authentication and workspace onboarding complete in code.** The repository includes the Next.js/TypeScript application shell, the visual foundation, Supabase SSR clients, email/password authentication pages, protected `/app` routing, workspace onboarding, a secure SQL migration with RLS, and the polished marketing landing page.
+**Portfolio-ready implementation complete.** The repository includes the Next.js/TypeScript application shell, Supabase SSR authentication, protected `/app` routing, workspace onboarding, a secure SQL data model with RLS, clients/projects/tasks/team/activity modules, database-backed dashboard metrics, demo data loading, and a grounded AI Workspace Brief.
 
-The remaining Phase 1 setup is external: create a Supabase project, apply the migration, add the two public environment variables locally, and configure the email redirect URLs. CRUD modules and operational data will be introduced in the next phases.
+The remaining setup is external: create a Supabase project, apply both migrations, add the two public environment variables locally, and configure the email redirect URLs. The app works without an AI key by using a grounded fallback; an OpenAI-compatible key enables live AI-generated summaries.
 
 ## Stack
 
 - Next.js App Router
 - React + TypeScript
 - Tailwind CSS
-- Supabase Auth and PostgreSQL (prepared for the next phase)
-- Zod (prepared for server-side validation)
+- Supabase Auth and PostgreSQL with Row Level Security
+- Zod server-side validation
 - Lucide React
 - Vercel deployment target
 - pnpm 11
@@ -27,7 +27,7 @@ The remaining Phase 1 setup is external: create a Supabase project, apply the mi
 
 - Node.js 20+
 - pnpm 11+
-- A Supabase project for the next phase (not required to view the Phase 0 landing page)
+- A Supabase project for authentication and database features
 
 ### Setup
 
@@ -50,11 +50,24 @@ Open [http://localhost:3000](http://localhost:3000).
    ```
 
 4. Put the two values in `.env.local` as `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-5. Open **SQL Editor** in Supabase and run `supabase/migrations/001_phase_1_auth_workspaces.sql`.
+5. Open **SQL Editor** in Supabase and run `supabase/migrations/001_phase_1_auth_workspaces.sql`, then `supabase/migrations/002_phase_2_operations.sql`.
 6. In **Authentication → URL Configuration**, use `http://localhost:3000` as the local Site URL and add `http://localhost:3000/auth/callback` as a redirect URL.
 7. Start the app with `pnpm dev`, open `/signup`, create an account, confirm the email if email confirmation is enabled, then create a workspace.
+8. From Overview, use **Load demo data** to create a safe showcase dataset for the current workspace.
 
-Do not commit `.env.local` or any service-role key. The migration creates the profile trigger, workspace membership tables, the secure `create_workspace` function, and Row Level Security policies. It is safe to run once in a fresh project.
+Do not commit `.env.local` or any service-role key. The migrations create profiles, workspaces, memberships, operational tables, the secure `create_workspace` function, and Row Level Security policies. Run them in order in a fresh project. The demo loader refuses to run when the workspace already has clients, so it does not overwrite existing data.
+
+### Optional AI configuration
+
+The AI Workspace Brief uses a grounded local fallback by default. To enable live AI output, add these server-only variables to `.env.local` or the deployment environment:
+
+```env
+OPENAI_API_KEY=your-server-side-key
+OPENAI_API_BASE=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
+```
+
+Never expose `OPENAI_API_KEY` with a `NEXT_PUBLIC_` prefix or commit it to GitHub.
 
 ## GitHub
 
@@ -71,13 +84,13 @@ pnpm build
 
 ## Environment variables
 
-Copy `.env.example` to `.env.local` and fill in the public Supabase URL and anon key when the authentication/database phase begins. Never commit `.env.local`, a service-role key, or any other secret.
+Copy `.env.example` to `.env.local` and fill in the public Supabase URL and anon key. Add optional AI variables only on the server. Never commit `.env.local`, a service-role key, an AI key, or any other secret.
 
 ## Repository map
 
 ```text
 app/                  Next.js routes, layout, global styles, and landing page
-components/           Reusable UI components (expanded in later phases)
+components/           Reusable UI components, forms, badges, and AI/demo controls
 lib/                  Supabase clients, permissions, validation, and domain logic
 types/                Database and domain types
 supabase/migrations/  Versioned SQL migrations
@@ -90,14 +103,14 @@ docs/architecture.md  System boundaries and data-flow notes
 
 ## Product direction
 
-The first useful release will support:
+The current useful release supports:
 
 - Workspace onboarding and protected routes.
 - Owner, Admin, and Member roles.
 - Clients, projects, and tasks with real relationships.
 - Database-backed KPIs and activity history.
 - Responsive B2B SaaS navigation and stateful forms.
-- A future AI Workspace Brief grounded in live workspace data.
+- An AI Workspace Brief grounded in live workspace data, with a no-key fallback.
 
 ## Portfolio case study outline
 
