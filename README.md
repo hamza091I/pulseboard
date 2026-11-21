@@ -82,6 +82,10 @@ pnpm format:check
 pnpm build
 ```
 
+### Production container
+
+The repository includes a production `Dockerfile` and an unauthenticated `/api/health` endpoint for container health checks. The image runs the Next.js standalone server on port `3000`; provide Supabase and optional AI variables through the deployment platform rather than baking them into the image.
+
 ## Environment variables
 
 Copy `.env.example` to `.env.local` and fill in the public Supabase URL and anon key. Add optional AI variables only on the server. Never commit `.env.local`, a service-role key, an AI key, or any other secret.
