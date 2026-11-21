@@ -11,6 +11,7 @@ import { AIBrief } from "@/components/ai-brief";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { StatusBadge } from "@/components/ui";
 import { DemoSeedButton } from "@/components/demo-seed-button";
+import { formatDate, formatDateTime, humanizeStatus } from "@/lib/format";
 
 export default async function AppDashboard() {
   const { supabase, user, workspace } = await getCurrentWorkspace();
@@ -129,7 +130,7 @@ export default async function AppDashboard() {
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-ink">{project.name}</p>
                     <p className="mt-1 text-xs text-slate-400">
-                      {project.due_date ? `Due ${project.due_date}` : "No due date"}
+                      {project.due_date ? `Due ${formatDate(project.due_date)}` : "No due date"}
                     </p>
                   </div>
                   <StatusBadge
@@ -141,7 +142,7 @@ export default async function AppDashboard() {
                           : "slate"
                     }
                   >
-                    {project.status.replaceAll("_", " ")}
+                    {humanizeStatus(project.status)}
                   </StatusBadge>
                 </div>
               ))}
@@ -170,7 +171,7 @@ export default async function AppDashboard() {
                   <div>
                     <p className="text-sm text-slate-600">{event.description}</p>
                     <p className="mt-1 text-xs text-slate-400">
-                      {new Date(event.created_at).toLocaleString()}
+                      {formatDateTime(event.created_at)}
                     </p>
                   </div>
                 </div>

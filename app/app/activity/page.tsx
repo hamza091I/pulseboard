@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { EmptyState, PageHeader } from "@/components/ui";
+import { formatDateTime } from "@/lib/format";
 export default async function ActivityPage() {
   const { supabase, workspace } = await getCurrentWorkspace();
   const { data: events } = await supabase
@@ -29,9 +30,7 @@ export default async function ActivityPage() {
                     </span>{" "}
                     {event.description}
                   </p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    {new Date(event.created_at).toLocaleString()}
-                  </p>
+                  <p className="mt-1 text-xs text-slate-400">{formatDateTime(event.created_at)}</p>
                 </div>
               </div>
             ))}
