@@ -1,3 +1,5 @@
+import { apiOk } from "@/lib/api";
+
 export function GET() {
-  return Response.json({ status: "ok", service: "pulseboard" });
+  return apiOk({ status: "ok", service: "pulseboard" });
 }
