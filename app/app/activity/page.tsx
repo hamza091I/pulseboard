@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { EmptyState, PageHeader } from "@/components/ui";
-import { formatDateTime } from "@/lib/format";
+import { ActivityFilters } from "@/components/activity-filters";
 export default async function ActivityPage() {
   const { supabase, workspace } = await getCurrentWorkspace();
   const { data: events } = await supabase
@@ -19,22 +18,7 @@ export default async function ActivityPage() {
       />
       <div className="mt-8">
         {events?.length ? (
-          <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
-            {events.map((event: any) => (
-              <div className="flex gap-4 p-5" key={event.id}>
-                <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-brand-500" />
-                <div>
-                  <p className="text-sm text-slate-600">
-                    <span className="font-semibold text-ink">
-                      {event.profiles?.full_name || "A teammate"}
-                    </span>{" "}
-                    {event.description}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-400">{formatDateTime(event.created_at)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <ActivityFilters events={events} />
         ) : (
           <EmptyState
             title="No activity yet"
