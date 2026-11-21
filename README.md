@@ -276,6 +276,7 @@ supabase/
 
 docs/
   architecture.md         System boundaries and data ownership notes
+  project-documentation.md Complete implementation and delivery documentation
 
 public/
   manus-routes.json       Route manifest
@@ -473,6 +474,8 @@ The public repository is:
 [github.com/hamza091I/pulseboard](https://github.com/hamza091I/pulseboard)
 
 The default branch is `main`. The repository intentionally excludes `.env.local`, `.next`, `node_modules`, TypeScript build information, and Git internals from the final portfolio ZIP.
+
+For a detailed explanation of every phase, architectural decision, database table, API route, security boundary, quality check, and portfolio walkthrough, read [the complete project documentation](docs/project-documentation.md).
 
 ## Portfolio presentation
 
