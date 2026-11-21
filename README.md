@@ -92,6 +92,16 @@ This project demonstrates a complete full-stack workflow rather than only a visu
 
 - Prevent demo data from overwriting a workspace that already contains clients.
 
+- Search and status filters for clients, projects, and tasks.
+
+- Activity search and action filters.
+
+- Client pagination for larger workspaces.
+
+- Form validation with Zod before database writes.
+
+- Loading, error, and not-found states for a more resilient user experience.
+
 ### AI Workspace Brief
 
 The dashboard can request a brief based on the current workspace metrics. The route collects already-authorized project, task, and client data, then either:
@@ -135,6 +145,10 @@ The AI layer is not an authorization layer and is not the source of truth for bu
 - pnpm 11.25.0
 
 - Docker-compatible Next.js standalone output
+
+- GitHub Actions CI
+
+- Production health smoke check
 
 Zod is included as a dependency for future boundary validation work. The current create flows also rely on database constraints and server/database authorization policies.
 
@@ -254,6 +268,7 @@ lib/
 
 types/
   domain.ts               Shared workspace, client, project, task, and role types
+  database.ts             Database row contracts
 
 supabase/
   migrations/              Ordered SQL schema and RLS migrations
@@ -264,6 +279,9 @@ docs/
 
 public/
   manus-routes.json       Route manifest
+
+.github/workflows/ci.yml  Automated quality checks
+scripts/smoke-health.sh   Production health smoke test
 
 Dockerfile                Production container contract
 app.config.ts             Project metadata and logo configuration
@@ -396,6 +414,12 @@ pnpm format:check
 pnpm build
 ```
 
+GitHub Actions runs the same quality sequence on pushes and pull requests targeting `main`. After starting the production server, the health smoke check can be run with:
+
+```bash
+pnpm smoke:health
+```
+
 The production server can be tested locally after a successful build:
 
 ```bash
@@ -481,4 +505,3 @@ Natural next extensions for a production SaaS release would include invitation e
 ## License
 
 This repository is a portfolio project. Add a license file before accepting external contributions or distributing the code as an open-source package.
-
