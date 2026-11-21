@@ -4,18 +4,23 @@ import { FormEvent, useState } from "react";
 import { Loader2, Plus, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { inputClass } from "@/components/ui";
+import { logActivity } from "@/lib/activity";
 
 export function RecordForm({
   kind,
   workspaceId,
   userId,
   projectId,
+  clients = [],
+  projects = [],
   onDoneAction,
 }: {
   kind: "client" | "project" | "task";
   workspaceId: string;
   userId: string;
   projectId?: string;
+  clients?: { id: string; name: string }[];
+  projects?: { id: string; name: string }[];
   onDoneAction: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -30,6 +35,8 @@ export function RecordForm({
     status: kind === "client" ? "lead" : kind === "project" ? "planning" : "todo",
     priority: "medium",
     due_date: "",
+    client_id: "",
+    project_id: projectId || "",
   });
   const label = kind === "client" ? "New client" : kind === "project" ? "New project" : "New task";
   function set(key: string, value: string) {
@@ -40,39 +47,73 @@ export function RecordForm({
     setLoading(true);
     setError("");
     const supabase = createClient();
-    let result;
-    if (kind === "client")
-      result = await supabase.from("clients").insert({
-        workspace_id: workspaceId,
-        name: values.name,
-        company: values.company || null,
-        email: values.email || null,
-        status: values.status,
-      });
-    if (kind === "project")
-      result = await supabase.from("projects").insert({
-        workspace_id: workspaceId,
-        created_by: userId,
-        name: values.name,
-        description: values.description || null,
-        status: values.status,
-        priority: values.priority,
-        due_date: values.due_date || null,
-      });
-    if (kind === "task")
-      result = await supabase.from("tasks").insert({
-        workspace_id: workspaceId,
-        project_id: projectId,
-        title: values.title,
-        description: values.description || null,
-        status: values.status,
-        priority: values.priority,
-        due_date: values.due_date || null,
-      });
-    if (result?.error) {
-      setError(result.error.message);
+    let recordId: string | null = null;
+    let error: { message: string } | null = null;
+    if (kind === "client") {
+      const result = await supabase
+        .from("clients")
+        .insert({
+          workspace_id: workspaceId,
+          name: values.name,
+          company: values.company || null,
+          email: values.email || null,
+          status: values.status,
+        })
+        .select("id")
+        .single();
+      recordId = result.data?.id || null;
+      error = result.error;
+    }
+    if (kind === "project") {
+      const result = await supabase
+        .from("projects")
+        .insert({
+          workspace_id: workspaceId,
+          created_by: userId,
+          name: values.name,
+          client_id: values.client_id || null,
+          description: values.description || null,
+          status: values.status,
+          priority: values.priority,
+          due_date: values.due_date || null,
+        })
+        .select("id")
+        .single();
+      recordId = result.data?.id || null;
+      error = result.error;
+    }
+    if (kind === "task") {
+      const result = await supabase
+        .from("tasks")
+        .insert({
+          workspace_id: workspaceId,
+          project_id: values.project_id,
+          title: values.title,
+          description: values.description || null,
+          status: values.status,
+          priority: values.priority,
+          due_date: values.due_date || null,
+        })
+        .select("id")
+        .single();
+      recordId = result.data?.id || null;
+      error = result.error;
+    }
+    if (error) {
+      setError(error.message);
       setLoading(false);
       return;
+    }
+    if (recordId) {
+      await logActivity(
+        supabase,
+        workspaceId,
+        userId,
+        kind,
+        recordId,
+        "created",
+        `${kind === "task" ? values.title : values.name} was created`,
+      );
     }
     setOpen(false);
     setLoading(false);
@@ -140,6 +181,35 @@ export function RecordForm({
               value={values.description}
             />
           )}
+          {kind === "project" && clients.length ? (
+            <select
+              className={inputClass}
+              onChange={(e) => set("client_id", e.target.value)}
+              value={values.client_id}
+            >
+              <option value="">No client linked</option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {kind === "task" && projects.length ? (
+            <select
+              className={inputClass}
+              onChange={(e) => set("project_id", e.target.value)}
+              required
+              value={values.project_id}
+            >
+              <option value="">Select project</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
           {kind !== "client" ? (
             <div className="grid grid-cols-2 gap-3">
               <select

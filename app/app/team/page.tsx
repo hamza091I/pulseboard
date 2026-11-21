@@ -18,7 +18,7 @@ export default async function TeamPage() {
         action={
           <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-500">
             <Users className="h-4 w-4" />
-            Invitations next
+            Workspace members
           </span>
         }
       />

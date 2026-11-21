@@ -2,9 +2,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/ui";
+import { RecordForm } from "@/components/record-form";
 import { getCurrentUserWorkspace } from "@/lib/client-workspace";
 export default function TasksPage() {
   const [rows, setRows] = useState<any[]>([]);
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [ctx, setCtx] = useState<any>(null);
   async function load() {
     const context = await getCurrentUserWorkspace();
@@ -16,6 +18,12 @@ export default function TasksPage() {
         .eq("workspace_id", context.workspace.id)
         .order("created_at", { ascending: false });
       setRows(data || []);
+      const { data: projectRows } = await context.supabase
+        .from("projects")
+        .select("id, name")
+        .eq("workspace_id", context.workspace.id)
+        .order("name");
+      setProjects(projectRows || []);
     }
   }
   useEffect(() => {
@@ -28,10 +36,16 @@ export default function TasksPage() {
         title="Tasks"
         description="Make the next action explicit, assignable, and easy to move through the workflow."
         action={
-          ctx ? (
-            <span className="text-xs text-slate-400">
-              Create tasks from a project in the next iteration.
-            </span>
+          ctx && projects.length ? (
+            <RecordForm
+              kind="task"
+              workspaceId={ctx.workspace.id}
+              userId={ctx.user.id}
+              projects={projects}
+              onDoneAction={load}
+            />
+          ) : ctx ? (
+            <span className="text-xs text-slate-400">Create a project first to add tasks.</span>
           ) : null
         }
       />

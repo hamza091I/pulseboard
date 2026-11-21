@@ -6,6 +6,7 @@ import { EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { getCurrentUserWorkspace } from "@/lib/client-workspace";
 export default function ProjectsPage() {
   const [rows, setRows] = useState<any[]>([]);
+  const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
   const [ctx, setCtx] = useState<any>(null);
   async function load() {
     const context = await getCurrentUserWorkspace();
@@ -17,6 +18,12 @@ export default function ProjectsPage() {
         .eq("workspace_id", context.workspace.id)
         .order("created_at", { ascending: false });
       setRows(data || []);
+      const { data: clientRows } = await context.supabase
+        .from("clients")
+        .select("id, name")
+        .eq("workspace_id", context.workspace.id)
+        .order("name");
+      setClients(clientRows || []);
     }
   }
   useEffect(() => {
@@ -34,6 +41,7 @@ export default function ProjectsPage() {
               kind="project"
               workspaceId={ctx.workspace.id}
               userId={ctx.user.id}
+              clients={clients}
               onDoneAction={load}
             />
           ) : null
