@@ -10,7 +10,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "smoke:health": "bash scripts/smoke-health.sh"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.1",
