@@ -5,6 +5,7 @@ import { Loader2, Plus, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { inputClass } from "@/components/ui";
 import { logActivity } from "@/lib/activity";
+import { clientRecordSchema, projectRecordSchema, taskRecordSchema } from "@/lib/validation";
 
 export function RecordForm({
   kind,
@@ -46,6 +47,17 @@ export function RecordForm({
     event.preventDefault();
     setLoading(true);
     setError("");
+    const parsed =
+      kind === "client"
+        ? clientRecordSchema.safeParse(values)
+        : kind === "project"
+          ? projectRecordSchema.safeParse(values)
+          : taskRecordSchema.safeParse(values);
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message || "Please check the form values.");
+      setLoading(false);
+      return;
+    }
     const supabase = createClient();
     let recordId: string | null = null;
     let error: { message: string } | null = null;
