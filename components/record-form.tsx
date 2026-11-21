@@ -134,6 +134,7 @@ export function RecordForm({
   if (!open)
     return (
       <button
+        aria-label={`Create ${kind}`}
         className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
         onClick={() => setOpen(true)}
       >
@@ -142,11 +143,16 @@ export function RecordForm({
       </button>
     );
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/30 p-5">
+    <div
+      aria-label={label}
+      aria-modal="true"
+      className="fixed inset-0 z-50 grid place-items-center bg-ink/30 p-5"
+      role="dialog"
+    >
       <form className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-soft" onSubmit={submit}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">{label}</h2>
-          <button type="button" onClick={() => setOpen(false)}>
+          <button aria-label="Close form" type="button" onClick={() => setOpen(false)}>
             <X className="h-5 w-5 text-slate-400" />
           </button>
         </div>
