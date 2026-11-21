@@ -6,9 +6,9 @@ PulseBoard is a multi-tenant SaaS operations dashboard for small agencies. It gi
 
 ## Current status
 
-**Phase 0 — Foundation complete.** The repository includes the Next.js/TypeScript application shell, the visual foundation, environment template, project documentation, route manifest, Supabase-ready dependencies, and a polished marketing landing page.
+**Phase 1 — Authentication and workspace onboarding complete in code.** The repository includes the Next.js/TypeScript application shell, the visual foundation, Supabase SSR clients, email/password authentication pages, protected `/app` routing, workspace onboarding, a secure SQL migration with RLS, and the polished marketing landing page.
 
-Authentication, database schema, workspace isolation, CRUD modules, and dashboard data will be introduced in the next phases.
+The remaining Phase 1 setup is external: create a Supabase project, apply the migration, add the two public environment variables locally, and configure the email redirect URLs. CRUD modules and operational data will be introduced in the next phases.
 
 ## Stack
 
@@ -38,6 +38,27 @@ pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+## Phase 1 — Supabase setup
+
+1. Create a project at [supabase.com](https://supabase.com) and open **Project Settings → API**.
+2. Copy the **Project URL** and the public **anon key**.
+3. Create a local environment file:
+
+   ```bash
+   cp .env.example .env.local
+   ```
+
+4. Put the two values in `.env.local` as `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+5. Open **SQL Editor** in Supabase and run `supabase/migrations/001_phase_1_auth_workspaces.sql`.
+6. In **Authentication → URL Configuration**, use `http://localhost:3000` as the local Site URL and add `http://localhost:3000/auth/callback` as a redirect URL.
+7. Start the app with `pnpm dev`, open `/signup`, create an account, confirm the email if email confirmation is enabled, then create a workspace.
+
+Do not commit `.env.local` or any service-role key. The migration creates the profile trigger, workspace membership tables, the secure `create_workspace` function, and Row Level Security policies. It is safe to run once in a fresh project.
+
+## GitHub
+
+The canonical portfolio repository is [github.com/hamza091I/pulseboard](https://github.com/hamza091I/pulseboard). Keep the repository public for portfolio visibility, but never commit secrets or `.env.local`.
 
 ### Quality checks
 

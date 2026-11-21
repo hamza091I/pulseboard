@@ -16,10 +16,14 @@
 
 ## Phase 1 — Authentication and workspace onboarding
 
-- [ ] Add Supabase email/password authentication with protected `/app` routes.
-- [ ] Create a profile and a workspace when a new user completes onboarding.
-- [ ] Add the user to `workspace_members` as Owner and persist the active workspace.
-- [ ] Ensure unauthenticated users cannot access protected application pages.
+- [x] Add Supabase email/password authentication with protected `/app` routes.
+- [x] Create a profile and a workspace when a new user completes onboarding.
+- [x] Add the user to `workspace_members` as Owner and persist the active workspace.
+- [x] Ensure unauthenticated users cannot access protected application pages.
+- [x] Add the Phase 1 SQL migration, onboarding RPC, membership policies, and profile trigger.
+- [x] Add Login, Signup, email callback, onboarding, and authenticated app overview pages.
+- [ ] Apply the migration in the user's Supabase project and add local `.env.local` values.
+- [ ] Test signup, email confirmation, workspace creation, refresh persistence, and logout against Supabase.
 
 ## Phase 2 — Workspace data foundation
 

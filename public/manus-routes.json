@@ -1,8 +1,10 @@
 {
   "routes": [
-    {
-      "path": "/",
-      "title": "PulseBoard — Agency Operations, in focus"
-    }
+    { "path": "/", "title": "PulseBoard — Agency Operations, in focus" },
+    { "path": "/login", "title": "Sign in | PulseBoard" },
+    { "path": "/signup", "title": "Create account | PulseBoard" },
+    { "path": "/onboarding", "title": "Create workspace | PulseBoard" },
+    { "path": "/app", "title": "Overview | PulseBoard" },
+    { "path": "/auth/callback", "title": "Authentication callback | PulseBoard" }
   ]
 }
