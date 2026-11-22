@@ -539,3 +539,332 @@ Recommended future extensions include:
 - More granular permission policies.
 
 These boundaries are documented so the project remains credible in a technical review.
+
+## 18. Implementation reference by directory
+
+The repository is intentionally small enough to understand as a complete system. The following map explains the responsibility of each important area.
+
+### `app/`
+
+The `app` directory contains the Next.js App Router entry points.
+
+- `app/page.tsx` renders the public product landing page.
+- `app/layout.tsx` defines root metadata, global styles, and the document shell.
+- `app/globals.css` contains global CSS, design tokens, and shared visual rules.
+- `app/(auth)/login/page.tsx` and `app/(auth)/signup/page.tsx` render the authentication screens.
+- `app/auth/callback/route.ts` exchanges the Supabase authorization code and redirects the user into the application.
+- `app/onboarding/page.tsx` lets an authenticated user create the first workspace.
+- `app/app/layout.tsx` is the protected workspace layout. It resolves the current workspace before rendering navigation and child pages.
+- `app/app/page.tsx` renders dashboard metrics, project momentum, recent activity, demo data access, and the AI brief action.
+- `app/app/clients/page.tsx` renders client records, creation, search, status filtering, and pagination.
+- `app/app/projects/page.tsx` renders projects, client relationships, search, status filtering, and creation.
+- `app/app/tasks/page.tsx` renders project-linked tasks, search, status filtering, and creation.
+- `app/app/team/page.tsx` renders workspace members and their roles.
+- `app/app/activity/page.tsx` renders the workspace activity history and filtering controls.
+- `app/app/settings/page.tsx` renders the current workspace identity and role context.
+- `app/app/loading.tsx` provides the protected-route loading skeleton.
+- `app/app/error.tsx` catches protected workspace failures and displays a retryable diagnostic state.
+- `app/not-found.tsx` provides the branded application-level 404 experience.
+- `app/api/health/route.ts` exposes the unauthenticated health check.
+- `app/api/demo/seed/route.ts` creates safe showcase data for an empty workspace.
+- `app/api/ai/brief/route.ts` creates a grounded workspace summary using either the configured model or a local fallback.
+
+### `components/`
+
+Reusable client and presentation components live here.
+
+- `record-form.tsx` provides the shared create form for clients, projects, and tasks. It selects the correct Zod schema based on the record type and reports validation errors before submitting.
+- `ai-brief.tsx` triggers the AI brief request and renders the returned wins, risks, and next action.
+- `demo-seed-button.tsx` starts the protected demo-data request and handles pending and error states.
+- `activity-filters.tsx` manages Activity Log search and action filters.
+- `ui.tsx` contains shared visual primitives such as page headers, status badges, and empty states.
+
+### `lib/`
+
+The `lib` directory contains domain helpers and integration boundaries.
+
+- `lib/supabase/client.ts` creates the browser Supabase client.
+- `lib/supabase/server.ts` creates the server Supabase client with cookie-aware SSR behavior.
+- `lib/workspace.ts` resolves the authenticated user's workspace on the server and preserves database diagnostics.
+- `lib/client-workspace.ts` performs the equivalent browser-side lookup where client rendering needs workspace context.
+- `lib/activity.ts` centralizes activity-log creation for important operations.
+- `lib/api.ts` standardizes successful and failed JSON responses.
+- `lib/format.ts` centralizes display formatting for dates and status values.
+- `lib/pagination.ts` contains reusable page calculations for client-side pagination.
+- `lib/validation.ts` contains Zod schemas for client, project, and task create payloads.
+
+### `types/`
+
+- `types/domain.ts` contains shared domain unions and UI-facing record types.
+- `types/database.ts` documents the expected database row contracts for TypeScript consumers.
+
+### `supabase/`
+
+- `supabase/migrations/001_phase_1_auth_workspaces.sql` creates profiles, workspaces, memberships, auth triggers, onboarding RPC logic, helper functions, and initial RLS policies.
+- `supabase/migrations/002_phase_2_operations.sql` creates clients, projects, tasks, activity logs, indexes, timestamp triggers, and operational RLS policies.
+- `supabase/seed.sql` contains safe seed guidance and is not a substitute for the authenticated demo route.
+
+### Configuration and delivery files
+
+- `middleware.ts` refreshes Supabase sessions and protects route boundaries.
+- `next.config.ts` enables standalone output and safe response headers.
+- `Dockerfile` builds and runs the standalone production server.
+- `.dockerignore` keeps dependencies, build artifacts, Git data, environment files, and development-only content out of the Docker context.
+- `.github/workflows/ci.yml` runs the reproducible CI checks.
+- `scripts/smoke-health.sh` verifies the deployed health response.
+- `app.config.ts` stores project-level metadata used by the managed project environment.
+- `public/manus-routes.json` documents the application route manifest.
+- `plan.md` records the product and implementation direction.
+- `TODO.md` records completed milestones and future scope.
+
+## 19. End-to-end request flows
+
+### New user to first workspace
+
+```text
+Signup form
+  → Supabase signUp
+  → auth.users row
+  → handle_new_user trigger
+  → profiles row
+  → auth callback/session
+  → onboarding page
+  → create_workspace(workspace_name)
+  → workspaces row
+  → workspace_members owner row
+  → /app
+```
+
+The onboarding function is executed as a security-definer PostgreSQL function, but it derives the owner from `auth.uid()`. The browser supplies only the workspace name; it cannot choose another user as the owner.
+
+### Protected dashboard request
+
+```text
+Browser request to /app
+  → middleware refreshes the session
+  → protected layout calls getCurrentWorkspace()
+  → server client calls auth.getUser()
+  → workspace_members is queried by authenticated user ID
+  → workspaces is queried by membership.workspace_id
+  → dashboard queries workspace-scoped records
+  → UI renders metrics and activity
+```
+
+The application never treats a workspace ID supplied by the browser as sufficient authorization. The current user's membership and PostgreSQL RLS policies remain authoritative.
+
+### Creating a project
+
+```text
+Project form
+  → client-side Zod validation
+  → server action/request with workspace context
+  → projects insert with workspace_id and created_by
+  → PostgreSQL RLS checks membership and creator
+  → activity_logs insert for the create event
+  → project list refreshes
+```
+
+The same pattern is used for clients and tasks. A task must reference an existing project, and a project may reference an existing client.
+
+## 20. Domain relationships and invariants
+
+The main relational graph is:
+
+```text
+auth.users 1 ─── 1 profiles
+              │
+              └──< workspace_members >── 1 workspaces
+                                             │
+                                             ├──< clients
+                                             ├──< projects ─── optional client
+                                             ├──< tasks ────── required project
+                                             └──< activity_logs
+```
+
+Important database invariants include:
+
+- A workspace name must contain between 2 and 80 characters after trimming.
+- A workspace slug is unique and uses lowercase URL-safe characters.
+- A user can have only one membership row per workspace.
+- Client, project, task, and activity records carry `workspace_id`.
+- Project names must contain between 2 and 140 characters.
+- Task titles must contain between 2 and 180 characters.
+- Project and task statuses are constrained to the domain values defined in the migrations.
+- Deleting a workspace cascades to its workspace-owned records.
+- Deleting a client nulls the optional `projects.client_id` relationship.
+- Deleting a project cascades to its tasks.
+- Deleting a user removes their profile and membership rows according to the foreign-key rules.
+- `updated_at` is refreshed by database triggers for clients, projects, and tasks.
+
+## 21. Status and role vocabulary
+
+The application uses the following controlled values:
+
+```text
+Roles:          owner | admin | member
+Client status:  lead | active | inactive
+Project status: planning | active | on_hold | completed
+Task status:    todo | in_progress | review | done
+Priority:       low | medium | high
+Activity action: created | updated | deleted | status_changed | invited
+```
+
+These values exist in both the TypeScript domain types and the PostgreSQL check constraints. Keeping the two layers aligned prevents invalid UI options from becoming invalid database rows.
+
+## 22. API contract summary
+
+### `GET /api/health`
+
+This endpoint is intentionally unauthenticated so a platform health check can call it without a user session.
+
+Success response:
+
+```json
+{
+  "status": "ok",
+  "service": "pulseboard"
+}
+```
+
+### `POST /api/demo/seed`
+
+This endpoint requires a signed-in user with a workspace. It refuses to seed a workspace that already contains client data, which protects existing records during portfolio demonstrations.
+
+Expected success shape:
+
+```json
+{
+  "ok": true
+}
+```
+
+Typical failure categories are `401` for missing authentication, `400` for a missing workspace or non-empty workspace, and `500` for an unexpected database failure.
+
+### `POST /api/ai/brief`
+
+This endpoint does not accept a workspace ID from the browser. It derives the workspace from the authenticated user's membership, queries workspace-scoped metrics, and then chooses the AI or fallback path.
+
+The compact model input contains project, task, and client fields needed for the summary. It does not contain the user's password, auth token, service-role key, or arbitrary data from another workspace.
+
+## 23. Security model
+
+PulseBoard uses defense in depth rather than relying on one UI check.
+
+1. Supabase Auth establishes the identity.
+2. Middleware protects the application route boundary.
+3. Server-side workspace resolution derives the tenant from membership.
+4. RLS policies enforce the tenant boundary in PostgreSQL.
+5. Foreign keys and check constraints protect relational integrity.
+6. Zod rejects malformed create payloads before database writes.
+7. Server-only AI variables are not prefixed with `NEXT_PUBLIC_`.
+8. The Docker image runs the standalone server as a non-root user.
+9. Security response headers reduce common browser-side risks without preventing the application's preview embedding.
+10. `.gitignore` and `.dockerignore` exclude local secrets and development artifacts.
+
+The public Supabase anon key is intended for browser use under RLS. It is not a replacement for a service-role key and does not bypass database policies.
+
+## 24. Developer workflow
+
+A normal feature workflow is:
+
+```bash
+git checkout -b feat/short-description
+pnpm install
+pnpm dev
+# implement and manually verify the change
+pnpm typecheck
+pnpm lint
+pnpm format:check
+pnpm build
+git diff --check
+git status --short
+git commit -m "feat: describe the meaningful change"
+git push origin feat/short-description
+```
+
+Before a release or portfolio update, also start the production server and run:
+
+```bash
+pnpm start
+pnpm smoke:health
+```
+
+The smoke script uses `BASE_URL` when provided and otherwise checks `http://localhost:3000`:
+
+```bash
+BASE_URL=https://your-deployment.example.com pnpm smoke:health
+```
+
+Do not run `pnpm format` blindly over files that contain intentional formatting or generated output. Use `pnpm format:check` first and review changes before committing.
+
+## 25. Troubleshooting runbook
+
+### The app redirects to onboarding unexpectedly
+
+1. Confirm that the user is signed in to the expected Supabase project.
+2. Get the authenticated user's ID from `auth.users`.
+3. Confirm that `workspace_members.user_id` matches that ID exactly.
+4. Confirm that the membership's `workspace_id` points to an existing workspace.
+5. Check whether RLS policies are enabled and present.
+6. Read the protected error boundary instead of assuming that the user has no membership.
+
+### The app says Supabase variables are missing
+
+Check that `.env.local` exists at the repository root and contains:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+Restart the development server after changing environment variables. Never paste `.env.local` into GitHub, screenshots, or support messages.
+
+### The AI brief returns the fallback
+
+This is expected when `OPENAI_API_KEY` is absent. It can also happen when the provider returns a non-success status or invalid JSON. The fallback is designed to keep the dashboard functional and grounded in database metrics.
+
+### Demo data cannot be loaded
+
+The seed route deliberately rejects a workspace that already contains clients. This is a safety feature, not a failure. Use a fresh workspace for a clean portfolio demonstration.
+
+### The production health check fails
+
+1. Confirm that the server is running.
+2. Confirm that the port and `BASE_URL` are correct.
+3. Open `/api/health` directly.
+4. Check container logs if the endpoint returns a non-200 status.
+5. Confirm that the production build completed successfully.
+
+## 26. Verification matrix
+
+| Area                | Command or check          | Expected result                        |
+| ------------------- | ------------------------- | -------------------------------------- |
+| TypeScript          | `pnpm typecheck`          | No type errors                         |
+| Lint                | `pnpm lint`               | No ESLint errors                       |
+| Formatting          | `pnpm format:check`       | All files pass Prettier                |
+| Production build    | `pnpm build`              | Next.js build completes                |
+| Health endpoint     | `pnpm smoke:health`       | JSON status is `ok`                    |
+| Authentication      | Signup and login manually | Session is created and refreshed       |
+| Workspace isolation | Use two workspaces        | Records do not cross tenant boundaries |
+| Onboarding          | Create a workspace        | Owner membership is created            |
+| Demo safety         | Seed twice                | Second seed is rejected                |
+| Activity            | Create a record           | Activity event is visible              |
+| AI fallback         | Omit AI key               | Grounded local brief is returned       |
+| AI provider path    | Configure server key      | Valid model response or safe fallback  |
+
+## 27. Known scope boundaries
+
+The current implementation is intentionally honest about what is and is not complete. It demonstrates a credible SaaS foundation, but the following are not yet implemented as full product workflows:
+
+- Email invitation delivery and acceptance.
+- Full member administration screens.
+- Complete edit and delete UI for every record type.
+- Billing, subscription enforcement, and payment processing.
+- Push, email, or in-app notifications.
+- Automated browser tests and comprehensive API integration tests.
+- Database-level cursor pagination for very large datasets.
+- Generated database types directly from a live Supabase schema.
+- Public production hosting and a live demo URL.
+- Advanced audit export and retention policies.
+
+These boundaries are part of the documentation because professional credibility comes from accurately describing the current system, not from presenting planned work as finished functionality.

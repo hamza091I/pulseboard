@@ -150,7 +150,7 @@ The AI layer is not an authorization layer and is not the source of truth for bu
 
 - Production health smoke check
 
-Zod is included as a dependency for future boundary validation work. The current create flows also rely on database constraints and server/database authorization policies.
+Zod validates the client, project, and task create forms before database writes. Database constraints and server/database authorization policies remain the final enforcement boundaries.
 
 ## Architecture
 
